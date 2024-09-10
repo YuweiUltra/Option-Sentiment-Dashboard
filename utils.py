@@ -313,7 +313,7 @@ def generate_call_put_ratio_plot(expiration_summary=None, df_melted=None, add_on
     return dcc.Graph(figure=fig), df_melted
 
 
-def get_close_price(ticker, date, rewrite=False):
+def get_close_price(ticker, date, rewrite=False,local=False):
     dir_path = f"./raw_data/{date}/{ticker}"
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
@@ -325,17 +325,19 @@ def get_close_price(ticker, date, rewrite=False):
             close_price_data = json.load(json_file)
         return close_price_data
     else:
-        date_time = datetime.strptime(date, '%Y-%m-%d')
-        data = yf.download(ticker, start=date_time - timedelta(days=30))
-        data['return'] = data["Adj Close"].pct_change()
-        close_price = data.loc[date, :]
+        if not local:
+            date_time = datetime.strptime(date, '%Y-%m-%d')
+            data = yf.download(ticker, start=date_time - timedelta(days=30))
+            data['return'] = data["Adj Close"].pct_change()
+            close_price = data.loc[date, :]
 
-        close_price_data = close_price.to_dict()
-        with open(json_file_path, 'w') as json_file:
-            json.dump(close_price_data, json_file)
+            close_price_data = close_price.to_dict()
+            with open(json_file_path, 'w') as json_file:
+                json.dump(close_price_data, json_file)
 
-        return close_price_data
-
+            return close_price_data
+        else:
+            raise Exception('no data found')
 
 @lru_cache(maxsize=10)
 def prepare_data(date, tickers_tuple):
@@ -466,24 +468,24 @@ def filter_combined_data_by_thresholds(df3, date, itm_or_otm, left_threshold_ori
 
 def get_tickers():
     df = pd.read_csv('./sp500_companies.csv')
-    df2 = pd.read_csv('./dow30.csv')
-    df3 = pd.read_csv('./nasdaq100.csv')
-    df4 = pd.read_csv('./russell1000.csv')
-    new_columns = ['Symbol']
-    new_columns.extend(df2.columns[1:])
-    df2.columns = new_columns
-    new_columns = ['Symbol']
-    new_columns.extend(df3.columns[1:])
-    df3.columns = new_columns
+    # df2 = pd.read_csv('./dow30.csv')
+    # df3 = pd.read_csv('./nasdaq100.csv')
+    # df4 = pd.read_csv('./russell1000.csv')
+    # new_columns = ['Symbol']
+    # new_columns.extend(df2.columns[1:])
+    # df2.columns = new_columns
+    # new_columns = ['Symbol']
+    # new_columns.extend(df3.columns[1:])
+    # df3.columns = new_columns
 
     tickers = list(df.Symbol.unique())
-    df2_tickers = list(df2.Symbol.unique())
-    df3_tickers = list(df3.Symbol.unique())
-    df4_tickers = list(df4.Ticker.unique())
+    # df2_tickers = list(df2.Symbol.unique())
+    # df3_tickers = list(df3.Symbol.unique())
+    # df4_tickers = list(df4.Ticker.unique())
 
-    tickers.extend(df2_tickers)
-    tickers.extend(df3_tickers)
-    tickers.extend(df4_tickers)
+    # tickers.extend(df2_tickers)
+    # tickers.extend(df3_tickers)
+    # tickers.extend(df4_tickers)
     tickers.extend(['TSM'])
 
     tickers = list(set(tickers))
