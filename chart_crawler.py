@@ -4,12 +4,21 @@ import os
 import time
 import random
 import shutil
+import logging
 from joblib import Parallel, delayed
 from fake_useragent import UserAgent
 
 from utils import get_latest_trading_day
 
 today, _ = get_latest_trading_day()
+
+# Configure logging
+logging.basicConfig(
+    filename=f'./log_files/run_{today}.log',  # Log file name
+    filemode='a',  # Append mode
+    format='%(asctime)s - %(levelname)s - %(message)s',  # Log format
+    level=logging.INFO  # Set the logging level
+)
 
 
 def close_modal_if_visible(page):
@@ -181,7 +190,7 @@ def chart_crawler(playwright: Playwright, url, ticker) -> None:
             browser.close()
 
             # Print success message
-            print(f"Successfully processed {ticker}")
+            logging.info(f"Successfully processed {ticker}")
             break  # Exit loop if successful
         except (AssertionError, Exception) as e:
             print(f"Attempt {attempt + 1} failed for {ticker}: {e}")
@@ -189,7 +198,7 @@ def chart_crawler(playwright: Playwright, url, ticker) -> None:
                 time.sleep(0.5)  # Wait before retrying
                 continue
             else:
-                print(f"Failed to process {ticker} after {retries} attempts.")
+                logging.error(f"Failed to process {ticker} after {retries} attempts.")
 
 
 def process_ticker_chart(ticker):
