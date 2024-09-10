@@ -2,13 +2,14 @@ from config import base_url, tries, timeout, headless, account, password
 from playwright.sync_api import Playwright, sync_playwright, expect
 import os
 import time
+import json
 import random
 import shutil
 import logging
 from joblib import Parallel, delayed
 from fake_useragent import UserAgent
 
-from utils import get_latest_trading_day
+from utils import get_latest_trading_day, get_close_price
 
 today, _ = get_latest_trading_day()
 
@@ -36,7 +37,8 @@ def chart_crawler(playwright: Playwright, url, ticker) -> None:
     fps = [f"{base_path}/OpenInterest.csv", f"{base_path}/ImpliedVolatility.csv", f"{base_path}/GammaExposure.csv",
            f"{base_path}/Greeks.csv",
            f"{base_path}/Volume.csv", f"{base_path}/MaxPain.csv",
-           f"{base_path}/NetGammaExposure.csv"]
+           f"{base_path}/overview_table1.json", f"{base_path}/overview_table2.json",
+           f"{base_path}/NetGammaExposure.csv", ]
 
     # Check if the file already exists
     if all(os.path.exists(fp) for fp in fps):
@@ -47,7 +49,7 @@ def chart_crawler(playwright: Playwright, url, ticker) -> None:
     for attempt in range(retries):
         time.sleep(random.uniform(0.2, 0.5))
         try:
-            ############## open url ################
+            ############## user agent ################
             ua = UserAgent()
             user_agent = ua.random
 
@@ -74,6 +76,43 @@ def chart_crawler(playwright: Playwright, url, ticker) -> None:
             page.get_by_label("Password").fill(password)
             page.get_by_role("button", name="Sign in").click()
             page.goto(url, timeout=timeout)
+
+            ############## abstract overview info ################
+            expect(page.get_by_role("strong")).to_contain_text(ticker)
+            tables = page.query_selector_all('table')
+            assert len(tables) == 4
+            data_1 = []
+            for table in tables[:3]:
+                rows = table.query_selector_all('tr')
+                for row in rows:
+                    heads = row.query_selector_all('th')
+                    key = [head.inner_text() for head in heads]
+                    cells = row.query_selector_all('td')
+                    value = [cell.inner_text() for cell in cells]
+                    if key and value:
+                        data_1.append({key[0]: value[0]})
+
+            data_2 = []
+            keys = ['Expiration', 'Volume Calls', 'Volume Puts', 'Volume Put-Call Ratio', 'Open Interest Calls',
+                    'Open Interest Puts', 'Open Interest Put-Call Ratio', 'Implied Volatility', 'Max Pain',
+                    'Max Pain vs Current Price']
+            rows = tables[-1].query_selector_all('tr')
+            for row in rows[2:]:
+                cells = row.query_selector_all('td')
+                value = [cell.inner_text() for cell in cells]
+                if len(value) == len(keys):
+                    row_dict = {keys[i]: value[i] for i in range(len(keys))}
+                    data_2.append(row_dict)
+
+            # Create directories if they don't exist
+            os.makedirs(base_path, exist_ok=True)
+            with open(fps[-3], 'w') as file:
+                json.dump(data_1, file, indent=4)
+            with open(fps[-2], 'w') as file:
+                json.dump(data_2, file, indent=4)
+
+            ############## go to charts url#############
+
             page.get_by_role("link", name="Option Charts").click()
             expect(page.locator("#expiration-dates-form-button-1")).to_contain_text("Expiration Dates")
             expect(page.get_by_role("strong")).to_contain_text(ticker)
@@ -202,6 +241,11 @@ def chart_crawler(playwright: Playwright, url, ticker) -> None:
 
 
 def process_ticker_chart(ticker):
+    try:
+        get_close_price(ticker, today)
+    except Exception:
+        logging.error(f"Cannot get price data for {ticker} on {today}")
+
     url = base_url + f"/{ticker}"
     with sync_playwright() as playwright:
         chart_crawler(playwright, url, ticker)
