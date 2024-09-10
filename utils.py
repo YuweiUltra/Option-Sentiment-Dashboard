@@ -484,6 +484,7 @@ def get_tickers():
     tickers.extend(df2_tickers)
     tickers.extend(df3_tickers)
     tickers.extend(df4_tickers)
+    tickers.extend(['TSM'])
 
     tickers = list(set(tickers))
     return tickers
