@@ -4,7 +4,7 @@ import socket
 import json
 import pandas as pd
 import plotly.graph_objs as go
-from utils import (get_latest_trading_day, get_close_price, get_listed_dates)
+from utils import (get_latest_trading_day, get_close_price, get_listed_dates, get_tickers)
 
 warnings.filterwarnings("ignore")
 
@@ -12,9 +12,10 @@ warnings.filterwarnings("ignore")
 # Data preparation
 dates = get_listed_dates()
 last_trading_date, pre_last_trading_date = get_latest_trading_day()
-df = pd.read_csv('./sp500_companies.csv')
-df = df.sort_values(by='Symbol')
+df = get_tickers()
 tickers = df.Symbol.unique().tolist()
+additional_ticker = ['TSM']
+tickers.extend(additional_ticker)
 
 ##############################################################################################################
 # Dash app setup with suppress_callback_exceptions=True
@@ -230,7 +231,9 @@ def render_content(date, ticker, expirations, selected_plot):
 
             fig.update_layout(
                 barmode='stack',
-                title=f'Gamma Exposure by Strike Price {ticker}',
+                title=f"Gamma Exposure by Strike Price {ticker} (Total: {round(sum_call['gamma_exposure'].sum() + sum_put['gamma_exposure'].sum())} "
+                      f"Call: {round(sum_call['gamma_exposure'].sum())} Put:{round(sum_put['gamma_exposure'].sum())} "
+                      f"Call-Put-Ratio: {sum_call['gamma_exposure'].sum() / sum_put['gamma_exposure'].sum():.2f} ) ",
                 title_x=0.5,
                 title_font=dict(family="Courier New, monospace", size=20, color="black"),
                 xaxis_title='Strike Price',
@@ -367,7 +370,8 @@ def render_content(date, ticker, expirations, selected_plot):
             )
 
             fig_gamma_diff.update_layout(
-                title=f'Gamma Exposure Difference (CALL minus PUT) {ticker}',
+                title=f"Gamma Exposure Difference (CALL minus PUT) {ticker} (Total: {round(df_grouped_diff['gamma_exposure_diff'].sum())} "
+                      f"Exposure ratio: {df_grouped_diff['gamma_exposure_diff'].sum() / df_grouped_diff['gamma_exposure_diff'].abs().sum():.2f} )",
                 title_x=0.5,
                 xaxis_title='Strike Price',
                 yaxis_title='Gamma Exposure Difference',
@@ -451,7 +455,10 @@ def render_content(date, ticker, expirations, selected_plot):
 
             fig.update_layout(
                 barmode='stack',
-                title=f'Open Interest by Strike Price {ticker} (Total: {df_filtered["open_interest"].sum()})',
+                title=f'Open Interest by Strike Price {ticker} (Total: {round(df_filtered["open_interest"].sum())} '
+                      f'Call: {round(df_filtered["open_interest"][df_filtered["option_type"] == "CALL"].sum())} '
+                      f'PUT: {round(df_filtered["open_interest"][df_filtered["option_type"] == "PUT"].sum())} '
+                      f'Call-Put-Ratio: {df_filtered["open_interest"][df_filtered["option_type"] == "CALL"].sum() / df_filtered["open_interest"][df_filtered["option_type"] == "PUT"].sum():.2f}) ',
                 title_x=0.5,
                 title_font=dict(family="Courier New, monospace", size=20, color="black"),
                 xaxis_title='Strike Price',

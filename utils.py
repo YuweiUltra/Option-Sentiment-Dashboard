@@ -462,3 +462,28 @@ def filter_combined_data_by_thresholds(df3, date, itm_or_otm, left_threshold_ori
     filtered_expiration_summary = filter_expiration_summary(combined_filtered_df)
 
     return combined_filtered_df, filtered_expiration_summary
+
+
+def get_tickers():
+    df = pd.read_csv('./sp500_companies.csv')
+    df2 = pd.read_csv('./dow30.csv')
+    df3 = pd.read_csv('./nasdaq100.csv')
+    df4 = pd.read_csv('./russell1000.csv')
+    new_columns = ['Symbol']
+    new_columns.extend(df2.columns[1:])
+    df2.columns = new_columns
+    new_columns = ['Symbol']
+    new_columns.extend(df3.columns[1:])
+    df3.columns = new_columns
+
+    tickers = list(df.Symbol.unique())
+    df2_tickers = list(df2.Symbol.unique())
+    df3_tickers = list(df3.Symbol.unique())
+    df4_tickers = list(df4.Ticker.unique())
+
+    tickers.extend(df2_tickers)
+    tickers.extend(df3_tickers)
+    tickers.extend(df4_tickers)
+
+    tickers = list(set(tickers))
+    return tickers
