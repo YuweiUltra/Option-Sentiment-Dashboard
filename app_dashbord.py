@@ -120,26 +120,52 @@ def render_content(date, ticker, expirations, selected_plot):
                     ],
                     data=overview_data1,
                     style_table={'overflowX': 'auto'},
-                    style_cell={'textAlign': 'left'},
-                    style_header={
-                        'backgroundColor': 'rgb(30, 30, 30)',
-                        'color': 'white',
-                        'fontWeight': 'bold'
+                    style_cell={
+                        'textAlign': 'left',
+                        'fontFamily': 'Courier New, monospace',
+                        'fontSize': '14px',
+                        'backgroundColor': 'white',
+                        'color': 'black'
                     },
-                    style_data={'backgroundColor': 'rgb(50, 50, 50)', 'color': 'white'}
+                    style_header={
+                        'backgroundColor': 'rgb(200, 200, 200)',
+                        'color': 'black',
+                        'fontWeight': 'bold',
+                        'fontFamily': 'Courier New, monospace',
+                        'fontSize': '14px'
+                    },
+                    style_data_conditional=[
+                        {
+                            'if': {'row_index': 'odd'},
+                            'backgroundColor': 'rgb(245, 245, 245)'
+                        }
+                    ]
                 ),
                 dash_table.DataTable(
                     id='options-table',
                     columns=[{"name": col, "id": col} for col in overview_data2[0].keys()],
                     data=overview_data2,
                     style_table={'overflowX': 'auto'},
-                    style_cell={'textAlign': 'left'},
-                    style_header={
-                        'backgroundColor': 'rgb(30, 30, 30)',
-                        'color': 'white',
-                        'fontWeight': 'bold'
+                    style_cell={
+                        'textAlign': 'left',
+                        'fontFamily': 'Courier New, monospace',
+                        'fontSize': '14px',
+                        'backgroundColor': 'white',
+                        'color': 'black'
                     },
-                    style_data={'backgroundColor': 'rgb(50, 50, 50)', 'color': 'white'},
+                    style_header={
+                        'backgroundColor': 'rgb(200, 200, 200)',
+                        'color': 'black',
+                        'fontWeight': 'bold',
+                        'fontFamily': 'Courier New, monospace',
+                        'fontSize': '14px'
+                    },
+                    style_data_conditional=[
+                        {
+                            'if': {'row_index': 'odd'},
+                            'backgroundColor': 'rgb(245, 245, 245)'
+                        }
+                    ],
                     page_size=10  # Optional: Set the page size
                 )
             ])
