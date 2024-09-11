@@ -576,14 +576,17 @@ def render_content(date, ticker, expirations, selected_plot):
 
 
 if __name__ == '__main__':
-    def find_free_port():
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.bind(('', 0))  # Bind to any available port
-        port = sock.getsockname()[1]  # Get the port number assigned
-        sock.close()
-        return port
+    # def find_free_port():
+    #     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    #     sock.bind(('', 0))  # Bind to any available port
+    #     port = sock.getsockname()[1]  # Get the port number assigned
+    #     sock.close()
+    #     return port
+    #
+    #
+    # # Run the server with a dynamically allocated port
+    # free_port = find_free_port()
+    # app.run_server(debug=False, port=free_port)
 
-
-    # Run the server with a dynamically allocated port
-    free_port = find_free_port()
-    app.run_server(debug=False, port=free_port)
+    fixed_port = 8050
+    app.run_server(debug=False, port=fixed_port)
