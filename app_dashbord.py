@@ -190,8 +190,8 @@ def render_content(date, ticker, expirations, selected_plot):
             df_call = df_filtered[df_filtered['option_type'] == 'CALL']
             df_put = df_filtered[df_filtered['option_type'] == 'PUT']
 
-            sum_put = df_put.groupby('strike')['gamma_exposure'].sum().reset_index().dropna()
-            sum_call = df_call.groupby('strike')['gamma_exposure'].sum().reset_index().dropna()
+            sum_put = df_put.groupby('strike')['gamma_exposure'].sum(numeric_only=True).reset_index().dropna()
+            sum_call = df_call.groupby('strike')['gamma_exposure'].sum(numeric_only=True).reset_index().dropna()
 
             max_y = max(sum_put['gamma_exposure'].max(), sum_call['gamma_exposure'].max())
             min_y = min(sum_put['gamma_exposure'].min(), sum_call['gamma_exposure'].min())
@@ -230,9 +230,9 @@ def render_content(date, ticker, expirations, selected_plot):
 
             fig.update_layout(
                 barmode='stack',
-                title=f"Gamma Exposure by Strike Price {ticker} (Total: {round(sum_call['gamma_exposure'].sum() + sum_put['gamma_exposure'].sum())} "
-                      f"Call: {round(sum_call['gamma_exposure'].sum())} Put:{round(sum_put['gamma_exposure'].sum())} "
-                      f"Call-Put-Ratio: {sum_call['gamma_exposure'].sum() / sum_put['gamma_exposure'].sum():.2f} ) ",
+                title=f"Gamma Exposure by Strike Price {ticker} (Total: {round(sum_call['gamma_exposure'].sum(numeric_only=True) + sum_put['gamma_exposure'].sum(numeric_only=True))} "
+                      f"Call: {round(sum_call['gamma_exposure'].sum(numeric_only=True))} Put:{round(sum_put['gamma_exposure'].sum(numeric_only=True))} "
+                      f"Call-Put-Ratio: {sum_call['gamma_exposure'].sum(numeric_only=True) / sum_put['gamma_exposure'].sum(numeric_only=True):.2f} ) ",
                 title_x=0.5,
                 title_font=dict(family="Courier New, monospace", size=20, color="black"),
                 xaxis_title='Strike Price',
@@ -262,9 +262,9 @@ def render_content(date, ticker, expirations, selected_plot):
                 font=dict(family="Courier New, monospace", size=14, color="black")
             )
 
-            df_call_summary = df[df['option_type'] == 'CALL'].groupby('expiration').sum().nlargest(5,
+            df_call_summary = df[df['option_type'] == 'CALL'].groupby('expiration').sum(numeric_only=True).nlargest(5,
                                                                                                    'gamma_exposure').reset_index()
-            df_put_summary = df[df['option_type'] == 'PUT'].groupby('expiration').sum().nlargest(5,
+            df_put_summary = df[df['option_type'] == 'PUT'].groupby('expiration').sum(numeric_only=True).nlargest(5,
                                                                                                  'gamma_exposure').reset_index()
 
             fig_call_summary = go.Figure()
@@ -340,8 +340,8 @@ def render_content(date, ticker, expirations, selected_plot):
             )
 
             df_grouped_diff = df_filtered.groupby('strike').apply(
-                lambda x: x[x['option_type'] == 'CALL']['gamma_exposure'].sum() -
-                          x[x['option_type'] == 'PUT']['gamma_exposure'].sum()
+                lambda x: x[x['option_type'] == 'CALL']['gamma_exposure'].sum(numeric_only=True) -
+                          x[x['option_type'] == 'PUT']['gamma_exposure'].sum(numeric_only=True)
             ).reset_index(name='gamma_exposure_diff').dropna()
 
             fig_gamma_diff = go.Figure()
@@ -369,8 +369,8 @@ def render_content(date, ticker, expirations, selected_plot):
             )
 
             fig_gamma_diff.update_layout(
-                title=f"Gamma Exposure Difference (CALL minus PUT) {ticker} (Total: {round(df_grouped_diff['gamma_exposure_diff'].sum())} "
-                      f"Exposure ratio: {df_grouped_diff['gamma_exposure_diff'].sum() / df_grouped_diff['gamma_exposure_diff'].abs().sum():.2f} )",
+                title=f"Gamma Exposure Difference (CALL minus PUT) {ticker} (Total: {round(df_grouped_diff['gamma_exposure_diff'].sum(numeric_only=True))} "
+                      f"Exposure ratio: {df_grouped_diff['gamma_exposure_diff'].sum(numeric_only=True) / df_grouped_diff['gamma_exposure_diff'].abs().sum(numeric_only=True):.2f} )",
                 title_x=0.5,
                 xaxis_title='Strike Price',
                 yaxis_title='Gamma Exposure Difference',
@@ -414,8 +414,8 @@ def render_content(date, ticker, expirations, selected_plot):
             df_call = df_filtered[df_filtered['option_type'] == 'CALL']
             df_put = df_filtered[df_filtered['option_type'] == 'PUT']
 
-            sum_put = df_put.groupby('strike')['open_interest'].sum().reset_index().dropna()
-            sum_call = df_call.groupby('strike')['open_interest'].sum().reset_index().dropna()
+            sum_put = df_put.groupby('strike')['open_interest'].sum(numeric_only=True).reset_index().dropna()
+            sum_call = df_call.groupby('strike')['open_interest'].sum(numeric_only=True).reset_index().dropna()
 
             max_y = max(sum_put['open_interest'].max(), sum_call['open_interest'].max())
             min_y = min(sum_put['open_interest'].min(), sum_call['open_interest'].min())
@@ -454,10 +454,10 @@ def render_content(date, ticker, expirations, selected_plot):
 
             fig.update_layout(
                 barmode='stack',
-                title=f'Open Interest by Strike Price {ticker} (Total: {round(df_filtered["open_interest"].sum())} '
-                      f'Call: {round(df_filtered["open_interest"][df_filtered["option_type"] == "CALL"].sum())} '
-                      f'PUT: {round(df_filtered["open_interest"][df_filtered["option_type"] == "PUT"].sum())} '
-                      f'Call-Put-Ratio: {df_filtered["open_interest"][df_filtered["option_type"] == "CALL"].sum() / df_filtered["open_interest"][df_filtered["option_type"] == "PUT"].sum():.2f}) ',
+                title=f'Open Interest by Strike Price {ticker} (Total: {round(df_filtered["open_interest"].sum(numeric_only=True))} '
+                      f'Call: {round(df_filtered["open_interest"][df_filtered["option_type"] == "CALL"].sum(numeric_only=True))} '
+                      f'PUT: {round(df_filtered["open_interest"][df_filtered["option_type"] == "PUT"].sum(numeric_only=True))} '
+                      f'Call-Put-Ratio: {df_filtered["open_interest"][df_filtered["option_type"] == "CALL"].sum(numeric_only=True) / df_filtered["open_interest"][df_filtered["option_type"] == "PUT"].sum(numeric_only=True):.2f}) ',
                 title_x=0.5,
                 title_font=dict(family="Courier New, monospace", size=20, color="black"),
                 xaxis_title='Strike Price',
@@ -487,9 +487,9 @@ def render_content(date, ticker, expirations, selected_plot):
                 font=dict(family="Courier New, monospace", size=14, color="black")
             )
 
-            df_call_summary = df[df['option_type'] == 'CALL'].groupby('expiration').sum().nlargest(5,
+            df_call_summary = df[df['option_type'] == 'CALL'].groupby('expiration').sum(numeric_only=True).nlargest(5,
                                                                                                    'open_interest').reset_index()
-            df_put_summary = df[df['option_type'] == 'PUT'].groupby('expiration').sum().nlargest(5,
+            df_put_summary = df[df['option_type'] == 'PUT'].groupby('expiration').sum(numeric_only=True).nlargest(5,
                                                                                                  'open_interest').reset_index()
 
             fig_call_summary = go.Figure()
