@@ -589,4 +589,4 @@ if __name__ == '__main__':
     # app.run_server(debug=False, port=free_port)
 
     fixed_port = 8050
-    app.run_server(debug=False, port=fixed_port)
+    app.run_server(debug=False, port=fixed_port, host='0.0.0.0')
