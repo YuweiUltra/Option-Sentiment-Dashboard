@@ -12,8 +12,7 @@ warnings.filterwarnings("ignore")
 # Data preparation
 dates = get_listed_dates()
 last_trading_date, pre_last_trading_date = get_latest_trading_day()
-df = get_tickers()
-tickers = df.Symbol.unique().tolist()
+tickers = get_tickers()
 additional_ticker = ['TSM']
 tickers.extend(additional_ticker)
 
