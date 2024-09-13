@@ -471,7 +471,7 @@ def filter_combined_data_by_thresholds(df3, date, itm_or_otm, left_threshold_ori
 def get_tickers():
     df = pd.read_csv(os.path.join(INDEX_DATA_DIR, f"sp500_companies.csv"))
     tickers = list(df.Symbol.unique())
-    tickers.extend(['TSM', 'PTRL', 'QQQ', 'SPY'])
+    tickers.extend(['TSM', 'PLTR', 'QQQ', 'SPY'])
 
     tickers = list(set(tickers))
     return tickers
