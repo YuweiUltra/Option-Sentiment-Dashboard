@@ -2,13 +2,17 @@ import os.path
 from dash import dcc, html, Input, Output, dash_table, Dash
 import warnings
 import json
-from flask_caching import Cache
 import pandas as pd
 import plotly.graph_objs as go
-from src.utils import (get_latest_trading_day, get_close_price, get_listed_dates, get_tickers)
+from src.utils import (
+    get_latest_trading_day,
+    get_close_price,
+    get_listed_dates,
+    get_tickers
+)
 from src.analysis.calculate_ratios import calculate_ratios
-from src.analysis.cross_section import create_cross_section_content  # Import the function
-from config import RAW_DATA_DIR, INDEX_DATA_DIR
+from src.analysis.cross_section import create_cross_section_content  # Import the updated function
+from config import RAW_DATA_DIR, INDEX_DATA_DIR, ANALYSIS_DATA_DIR  # Ensure ANALYSIS_DATA_DIR is imported
 
 warnings.filterwarnings("ignore")
 
@@ -23,58 +27,104 @@ ratios = calculate_ratios(rewrite=False)
 ##############################################################################################################
 # Dash app setup with suppress_callback_exceptions=True
 app = Dash(__name__,
-           external_stylesheets=['https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css'])
+           external_stylesheets=['https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css'],
+           suppress_callback_exceptions=True)  # Added suppress_callback_exceptions=True
 server = app.server
 
 # Layout
 app.layout = html.Div(
     children=[
-        html.H1("Options Viewer Dashboard", style={'textAlign': 'center'}),  # White text color
+        html.H1("Options Viewer Dashboard", style={'textAlign': 'center'}),
         # Container to align dropdowns and inputs in a single line
         html.Div(
             children=[
-                dcc.Dropdown(
-                    id='date-dropdown',
-                    options=[{'label': date, 'value': date} for date in dates],
-                    value=dates[-1],  # Default value
-                    clearable=False,
-                    style={'width': '80%', 'margin-right': '5px'}
+                # Dropdown 1
+                html.Div(
+                    children=dcc.Dropdown(
+                        id='date-dropdown',
+                        options=[{'label': date, 'value': date} for date in dates],
+                        value=dates[-1],  # Default value
+                        clearable=False,
+                        style={'width': '100%'}
+                    ),
+                    style={'width': '24%', 'margin-right': '1%'}
                 ),
-                dcc.Dropdown(
-                    id='ticker-dropdown',
-                    options=[{'label': ticker, 'value': ticker} for ticker in tickers],
-                    value='AAPL',
-                    clearable=False,
-                    style={'width': '80%', 'margin-right': '5px'}  # Adjust width and spacing
+                # Dropdown 2
+                html.Div(
+                    children=dcc.Dropdown(
+                        id='ticker-dropdown',
+                        options=[{'label': ticker, 'value': ticker} for ticker in tickers],
+                        value='AAPL',
+                        clearable=False,
+                        style={'width': '100%'}
+                    ),
+                    style={'width': '24%', 'margin-right': '1%'}
                 ),
-                dcc.Dropdown(
-                    id='expiration-dropdown',
-                    options=[],
-                    clearable=False,
-                    multi=True,
-                    style={'width': '80%', 'margin-right': '5px'}  # Adjust width and spacing
+                # Dropdown 3
+                html.Div(
+                    children=dcc.Dropdown(
+                        id='expiration-dropdown',
+                        options=[],
+                        clearable=False,
+                        multi=True,
+                        style={'width': '100%'}
+                    ),
+                    style={'width': '24%', 'margin-right': '1%'}
                 ),
-                dcc.Dropdown(
-                    id='plot-selection-dropdown',
-                    options=[
-                        {'label': "Overview", 'value': 'overview'},
-                        {'label': "Open Interest", 'value': 'open_interest'},
-                        {'label': "Gamma Exposure", 'value': 'gamma_exposure'},
-                        {'label': "Cross Section", 'value': 'cross_section'}
-                    ],
-                    value="overview",
-                    clearable=False,
-                    style={'width': '80%', 'margin-right': '5px'}
+                # Dropdown 4
+                html.Div(
+                    children=dcc.Dropdown(
+                        id='plot-selection-dropdown',
+                        options=[
+                            {'label': "Overview", 'value': 'overview'},
+                            {'label': "Open Interest", 'value': 'open_interest'},
+                            {'label': "Gamma Exposure", 'value': 'gamma_exposure'},
+                            {'label': "Cross Section", 'value': 'cross_section'}
+                        ],
+                        value="overview",
+                        clearable=False,
+                        style={'width': '100%'}
+                    ),
+                    style={'width': '24%'}  # No right margin for the last dropdown
                 )
             ],
-            style={'display': 'flex', 'align-items': 'center'}  # Flexbox to align dropdowns in a row
+            style={
+                'display': 'flex',
+                'align-items': 'center',
+                'justify-content': 'center',
+                'padding': '10px',
+                'flex-wrap': 'wrap'  # Allows wrapping on smaller screens
+            }
+        ),
+        html.Div(
+            children=[
+                html.Button(
+                    "Regenerate Cross-Section Analysis",
+                    id='rewrite-button',
+                    n_clicks=0,
+                    style={'margin': '10px', 'padding': '10px'}
+                )
+            ],
+            id='button-container',
+            style={'textAlign': 'center', 'display': 'none'}
         ),
         html.Div(id='plot-content'),
     ]
 )
 
 
-# Dynamically update the options in plot-selection-dropdown based on the plot category selected
+@app.callback(
+    Output('button-container', 'style'),
+    Input('plot-selection-dropdown', 'value')
+)
+def toggle_button(selected_plot):
+    if selected_plot == 'cross_section':
+        return {'textAlign': 'center', 'display': 'block'}
+    else:
+        return {'textAlign': 'center', 'display': 'none'}
+
+
+# Dynamically update the options in expiration-dropdown based on the ticker and date selected
 @app.callback(
     Output('expiration-dropdown', 'options'),
     [Input('ticker-dropdown', 'value'),
@@ -82,13 +132,17 @@ app.layout = html.Div(
 )
 def update_expiration_dropdown_options(ticker, date):
     if ticker is None or date is None:
-        return None
-    else:
-        df = pd.read_csv(os.path.join(RAW_DATA_DIR, f'{date}/{ticker}/OpenInterest.csv'))
+        return []
+    try:
+        df = pd.read_csv(os.path.join(RAW_DATA_DIR, f'{date}', f'{ticker}', 'OpenInterest.csv'))
         df['date_str'] = df['contract_symbol'].str.extract(r'(\d{6})')
         df['date'] = pd.to_datetime(df['date_str'], format='%y%m%d')
         df = df.sort_values(by='date')
-        return df['date'].dt.strftime('%Y-%m-%d').unique().tolist()
+        expirations = df['date'].dt.strftime('%Y-%m-%d').unique().tolist()
+        return [{'label': exp, 'value': exp} for exp in expirations]
+    except Exception as e:
+        print(f"Error updating expiration dropdown: {e}")
+        return []
 
 
 @app.callback(
@@ -121,13 +175,20 @@ def update_dropdown_options(search_value):
     [Input('date-dropdown', 'value'),
      Input('ticker-dropdown', 'value'),
      Input('expiration-dropdown', 'value'),
-     Input('plot-selection-dropdown', 'value')]
+     Input('plot-selection-dropdown', 'value'),
+     Input('rewrite-button', 'n_clicks')]
 )
-def render_content(date, ticker, expirations, selected_plot):
+def render_content(date, ticker, expirations, selected_plot, n_clicks):
+    # Determine if rewrite is requested
+    rewrite = False
+    if n_clicks > 0:
+        rewrite = True
+
     if selected_plot == 'cross_section':
         try:
-            return create_cross_section_content(date, dates, tickers)
+            return create_cross_section_content(date, dates, tickers, rewrite=rewrite)
         except Exception as e:
+            print(f"Error generating cross section content: {e}")
             return html.Div(f"Error generating cross section content: {e}")
 
     try:
@@ -155,7 +216,8 @@ def render_content(date, ticker, expirations, selected_plot):
                     x=ratios_filtered['date'],
                     y=ratios_filtered['gamma_exposure_ratio'],
                     marker_color='rgba(75, 192, 192, 0.6)',
-                    width=0.4
+                    width=0.4,
+                    name='Gamma Exposure Ratio'
                 )
             ])
             fig_gamma_exposure_ratio.update_layout(
@@ -174,12 +236,78 @@ def render_content(date, ticker, expirations, selected_plot):
                 bargap=0.1
             )
 
+            # Added code to read close prices and add as a line
+            # Inside the "overview" selected_plot section, modify fig_gamma_exposure_ratio as follows:
+
+            # Read close prices for all dates
+            close_prices = []
+            for d in ratios_filtered['date']:
+                try:
+                    with open(os.path.join(RAW_DATA_DIR, f"{d}/{ticker}/close_price.json"), 'r') as f:
+                        data = json.load(f)
+                        close_prices.append(data["Close"])
+                except Exception as e:
+                    print(f"Error reading close price for {d}: {e}")
+                    close_prices.append(None)
+
+            # Create Gamma Exposure Ratio bar plot
+            fig_gamma_exposure_ratio = go.Figure()
+
+            fig_gamma_exposure_ratio.add_trace(go.Bar(
+                x=ratios_filtered['date'],
+                y=ratios_filtered['gamma_exposure_ratio'],
+                marker_color='rgba(75, 192, 192, 0.6)',
+                width=0.4,
+                name='Gamma Exposure Ratio'
+            ))
+
+            # Add Close Price line with secondary y-axis
+            fig_gamma_exposure_ratio.add_trace(go.Scatter(
+                x=ratios_filtered['date'],
+                y=close_prices,
+                name='Close Price',
+                yaxis='y2',
+                mode='lines+markers',
+                line=dict(color='red'),
+                marker=dict(symbol='circle', size=6)
+            ))
+
+            fig_gamma_exposure_ratio.update_layout(
+                title='Gamma Exposure Ratio Over Time',
+                xaxis_title='Date',
+                yaxis_title='Gamma Exposure Ratio',
+                yaxis2=dict(
+                    overlaying='y',
+                    side='right',
+                    showticklabels=False,
+                    showline=False,
+                    showgrid=False
+                ),
+                plot_bgcolor='white',
+                paper_bgcolor='white',
+                font=dict(family="Courier New, monospace", size=14, color="black"),
+                xaxis=dict(
+                    type='category',
+                    categoryorder='array',
+                    categoryarray=ratios_filtered['date'].tolist(),
+                    showgrid=False
+                ),
+                bargap=0.1,
+                legend=dict(
+                    x=0.01,
+                    y=0.99,
+                    bgcolor='rgba(255,255,255,0)',
+                    bordercolor='rgba(255,255,255,0)'
+                )
+            )
+
             fig_open_interest_ratio = go.Figure(data=[
                 go.Bar(
                     x=ratios_filtered['date'],
                     y=ratios_filtered['open_interest_call_put_ratio'],
                     marker_color='rgba(153, 102, 255, 0.6)',
-                    width=0.4
+                    width=0.4,
+                    name='Open Interest Call-Put Ratio'
                 )
             ])
             fig_open_interest_ratio.update_layout(
@@ -258,7 +386,8 @@ def render_content(date, ticker, expirations, selected_plot):
                     page_size=10
                 )
             ])
-        except:
+        except Exception as e:
+            print(f"Overview error: {e}")
             return html.Div("Overview data are not found.")
 
     if selected_plot == "gamma_exposure":
@@ -665,12 +794,5 @@ def render_content(date, ticker, expirations, selected_plot):
 
 
 if __name__ == '__main__':
-    cache = Cache(app.server, config={
-        'CACHE_TYPE': 'simple'  # For development. Use more robust caching in production
-    })
-
-    # Define cache timeout in seconds
-    CACHE_TIMEOUT = 60 * 60
-
     fixed_port = 8050
     app.run_server(debug=True, port=fixed_port, host='0.0.0.0')

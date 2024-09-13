@@ -1,3 +1,5 @@
+# src/analysis/cross_section.py
+
 from dash import dcc, html, dash_table
 import warnings
 import os
@@ -5,34 +7,49 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objs as go
 from copy import deepcopy
-from src.utils import (get_latest_trading_day, get_close_price, get_listed_dates, get_tickers)
+from src.utils import (
+    get_latest_trading_day,
+    get_close_price,
+    get_listed_dates,
+    get_tickers
+)
 import statsmodels.api as sm
 import plotly.express as px
-from config import INDEX_DATA_DIR, RAW_DATA_DIR
+from config import INDEX_DATA_DIR, RAW_DATA_DIR, ANALYSIS_DATA_DIR  # Ensure ANALYSIS_DATA_DIR is defined
+# from calculate_ratios import calculate_ratios  # Uncomment if needed
 
 warnings.filterwarnings("ignore")
 
 
 def cal_gamma_skew(date, ticker):
+    """
+    Calculate the gamma skew and open interest for a given date and ticker.
+    """
     try:
         price = get_close_price(ticker, date)
         lower_bound = price['Close'] * 0.5
         upper_bound = price['Close'] * 1.5
 
+        # Read CSV files
         df_oi = pd.read_csv(os.path.join(RAW_DATA_DIR, date, ticker, 'OpenInterest.csv'))
         df_greeks = pd.read_csv(os.path.join(RAW_DATA_DIR, date, ticker, 'Greeks.csv'))
 
+        # Merge DataFrames
         df = pd.merge(df_oi, df_greeks[['contract_symbol', 'gamma']], on='contract_symbol')
         df['gamma_exposure'] = df['open_interest'] * df['gamma']
         df['date_str'] = df['contract_symbol'].str.extract(r'(\d{6})')
         df['date'] = pd.to_datetime(df['date_str'], format='%y%m%d')
         df['expiration'] = df['date'].dt.strftime('%Y-%m-%d')
 
+        # Filter expirations and strikes
         expirations = sorted(df['expiration'].unique().tolist())
         expirations_formatted = pd.to_datetime(expirations).strftime('%y%m%d').tolist()
         df_filtered = df[df['contract_symbol'].str.contains('|'.join(expirations_formatted))]
-        df_filtered = df_filtered[(df_filtered['strike'] >= lower_bound) & (df_filtered['strike'] <= upper_bound)]
+        df_filtered = df_filtered[
+            (df_filtered['strike'] >= lower_bound) & (df_filtered['strike'] <= upper_bound)
+        ]
 
+        # Calculate skew if open interest threshold is met
         if df_filtered['open_interest'].sum() > 200000:
             df_grouped_diff = df_filtered.groupby('strike').apply(
                 lambda x: x[x['option_type'] == 'CALL']['gamma_exposure'].sum() -
@@ -50,6 +67,9 @@ def cal_gamma_skew(date, ticker):
 
 
 def prepare_skew_data(tickers, dates):
+    """
+    Prepare skew data for regression analysis.
+    """
     skew_data = []
     dates = sorted(dates)
     for date in dates:
@@ -65,6 +85,7 @@ def prepare_skew_data(tickers, dates):
             )
     skew_df = pd.DataFrame(skew_data)
 
+    # Shift data for regression
     temp_df = deepcopy(skew_df)
     temp_df['return'] = temp_df.groupby('ticker')['return'].shift(-1)
     temp_df['current skew'] = temp_df.groupby('ticker')['skew'].shift(-1)
@@ -75,16 +96,14 @@ def prepare_skew_data(tickers, dates):
 
 
 def perform_regression(temp_df):
+    """
+    Perform OLS regression on skew changes vs. returns.
+    """
     X = temp_df[['skew change']]
     X = sm.add_constant(X)
     y = temp_df['return']
 
     model = sm.OLS(y, X).fit()
-
-    intercept = model.params['const']
-    slope = model.params['skew change']
-    r_squared = model.rsquared
-    p_value = model.pvalues['skew change']
 
     temp_df['predicted_return'] = model.predict(X)
     temp_df['residual'] = np.abs(temp_df['return'] - temp_df['predicted_return'])
@@ -92,7 +111,10 @@ def perform_regression(temp_df):
     return model, temp_df
 
 
-def create_cross_section_figures(temp_df, model, temp_df_sorted, top_n=5):
+def create_cross_section_figures(temp_df, model, top_n=5):
+    """
+    Create Plotly figures and prepare data for tables.
+    """
     # Scatter Plot with Regression Line
     fig = px.scatter(
         temp_df,
@@ -104,21 +126,23 @@ def create_cross_section_figures(temp_df, model, temp_df_sorted, top_n=5):
         height=800
     )
 
+    # Add Regression Line
     fig.add_traces(go.Scatter(
         x=temp_df['skew change'],
         y=temp_df['predicted_return'],
         mode='lines',
-        name='Regression Line', ))
+        name='Regression Line',
+        line=dict(color='green', width=2)
+    ))
 
     # Top N Residuals
     top_residuals = temp_df.nlargest(top_n, 'residual')
     fig.add_traces(go.Scatter(
         x=top_residuals['skew change'],
         y=top_residuals['return'],
-        mode='markers+text',
+        mode='markers',
         marker=dict(color='red', size=12),
         name=f'Top {top_n} Residuals',
-        text=top_residuals['ticker'],
         textposition='top center'
     ))
 
@@ -143,7 +167,7 @@ def create_cross_section_figures(temp_df, model, temp_df_sorted, top_n=5):
                       customdata=np.stack((temp_df['current skew'], temp_df['residual']), axis=-1))
     fig.update_layout(showlegend=True)
 
-    # Tables
+    # Prepare Tables
     df_head = temp_df.head(10).to_dict('records')
     df_tail = temp_df.tail(10).to_dict('records')
     specific_tickers = ['NVDA', 'META', 'GOOG', 'GOOGL', 'AAPL', 'TSLA', 'MSFT', 'AMZN', 'MU', 'TSM']
@@ -154,83 +178,83 @@ def create_cross_section_figures(temp_df, model, temp_df_sorted, top_n=5):
     return fig, df_head, df_tail, df_specific, model
 
 
-def create_cross_section_content(date, dates, tickers):
-    selected_dates = [date, dates[dates.index(date) - 1]]
+def create_cross_section_content(date, dates, tickers, rewrite=False):
+    """
+    Create cross-section analysis content, save to HTML, and return Dash components.
+
+    Parameters:
+    - date (str): The selected date for analysis.
+    - dates (list): List of available dates.
+    - tickers (list): List of tickers.
+    - rewrite (bool): Whether to regenerate the HTML file even if it exists.
+
+    Returns:
+    - html.Div or html.Iframe: Dash component containing the analysis.
+    """
+    # Define the HTML file path
+    file_path = os.path.join(ANALYSIS_DATA_DIR, f'cross_section_{date}.html')
+
+    # Check if the HTML file exists and rewrite is False
+    if not rewrite and os.path.exists(file_path):
+        try:
+            with open(file_path, 'r') as f:
+                html_content = f.read()
+            return html.Iframe(srcDoc=html_content, style={'width': '100%', 'height': '1200px', 'border': 'none'})
+        except Exception as e:
+            print(f"Error loading existing HTML file: {e}. Regenerating content.")
+            # Proceed to regenerate if loading fails
+
+    # Generate the analysis content
+    selected_dates = [date]
+    # Optionally, include the previous date for comparison
+    try:
+        current_index = dates.index(date)
+        if current_index > 0:
+            selected_dates.append(dates[current_index - 1])
+    except ValueError:
+        print(f"Selected date {date} not found in dates list.")
+
     temp_df = prepare_skew_data(tickers, selected_dates)
+    if temp_df.empty:
+        return html.Div("Insufficient data to perform cross-section analysis.")
+
     model, temp_df = perform_regression(temp_df)
-    fig, df_head, df_tail, df_specific, model = create_cross_section_figures(temp_df, model, temp_df)
+    fig, df_head, df_tail, df_specific, model = create_cross_section_figures(temp_df, model)
 
-    # Generate DataTables
-    table_head = dash_table.DataTable(
-        columns=[{"name": i, "id": i} for i in temp_df.head(10).columns],
-        data=df_head,
-        style_table={'overflowX': 'auto'},
-        style_cell={
-            'textAlign': 'left',
-            'fontFamily': 'Courier New, monospace',
-            'fontSize': '12px',
-            'backgroundColor': 'white',
-            'color': 'black'
-        },
-        style_header={
-            'backgroundColor': 'rgb(200, 200, 200)',
-            'color': 'black',
-            'fontWeight': 'bold',
-            'fontFamily': 'Courier New, monospace',
-            'fontSize': '14px'
-        },
-        page_size=10
-    )
+    # Convert figure to HTML
+    fig_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
 
-    table_tail = dash_table.DataTable(
-        columns=[{"name": i, "id": i} for i in temp_df.tail(10).columns],
-        data=df_tail,
-        style_table={'overflowX': 'auto'},
-        style_cell={
-            'textAlign': 'left',
-            'fontFamily': 'Courier New, monospace',
-            'fontSize': '12px',
-            'backgroundColor': 'white',
-            'color': 'black'
-        },
-        style_header={
-            'backgroundColor': 'rgb(200, 200, 200)',
-            'color': 'black',
-            'fontWeight': 'bold',
-            'fontFamily': 'Courier New, monospace',
-            'fontSize': '14px'
-        },
-        page_size=10
-    )
+    # Convert tables to HTML using Pandas
+    df_head_html = pd.DataFrame(df_head).to_html(index=False)
+    df_tail_html = pd.DataFrame(df_tail).to_html(index=False)
+    df_specific_html = pd.DataFrame(df_specific).to_html(index=False)
 
-    table_specific = dash_table.DataTable(
-        columns=[{"name": i, "id": i} for i in temp_df[temp_df['ticker'].isin(
-            ['NVDA', 'META', 'GOOG', 'GOOGL', 'AAPL', 'TSLA', 'MSFT', 'AMZN', 'MU', 'TSM'])].columns],
-        data=df_specific,
-        style_table={'overflowX': 'auto'},
-        style_cell={
-            'textAlign': 'left',
-            'fontFamily': 'Courier New, monospace',
-            'fontSize': '12px',
-            'backgroundColor': 'white',
-            'color': 'black'
-        },
-        style_header={
-            'backgroundColor': 'rgb(200, 200, 200)',
-            'color': 'black',
-            'fontWeight': 'bold',
-            'fontFamily': 'Courier New, monospace',
-            'fontSize': '14px'
-        },
-        page_size=10
-    )
+    # Combine all HTML content
+    full_html = f"""
+    <html>
+        <head>
+            <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+        </head>
+        <body>
+            <h2>Cross-Section Analysis for {date}</h2>
+            {fig_html}
+            <h3>Top 10 Records</h3>
+            {df_head_html}
+            <h3>Bottom 10 Records</h3>
+            {df_tail_html}
+            <h3>Selected Tickers</h3>
+            {df_specific_html}
+        </body>
+    </html>
+    """
 
-    return html.Div([
-        dcc.Graph(figure=fig),
-        html.H3("Top 10 Records"),
-        table_head,
-        html.H3("Bottom 10 Records"),
-        table_tail,
-        html.H3("Selected Tickers"),
-        table_specific
-    ])
+    # Save the HTML content to file
+    try:
+        with open(file_path, 'w') as f:
+            f.write(full_html)
+        print(f"Cross-section analysis saved to {file_path}")
+    except Exception as e:
+        print(f"Error saving HTML file: {e}")
+
+    # Return the HTML content embedded in an Iframe
+    return html.Iframe(srcDoc=full_html, style={'width': '100%', 'height': '1200px', 'border': 'none'})
