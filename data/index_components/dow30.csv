@@ -1,0 +1,31 @@
+﻿SYMBOL ,NAME ,PRICE ,CHANGE ,%CHANGE ,LOW ,HIGH ,PREVIOUS CLOSE 
+AMZN,Amazon.com Inc,175.4,4.01,2.34,0,0,175.4
+AXP,American Express Co,250.92,6.86,2.81,0,0,250.92
+AMGN,Amgen Inc,325.92,5.36,1.67,0,0,325.92
+AAPL,Apple Inc,220.91,0.09,0.04,0,0,220.91
+BA,Boeing Co,162.91,5.29,3.36,0,0,162.91
+CAT,Caterpillar Inc,334.04,4.68,1.42,0,0,334.04
+CSCO,Cisco Systems Inc,48.7,0.2,0.41,0,0,48.7
+CVX,Chevron Corp,140.3,1.74,1.26,0,0,140.3
+GS,Goldman Sachs Group Inc,488.57,8.96,1.87,0,0,488.57
+HD,Home Depot Inc,365.52,5.47,1.52,0,0,365.52
+HON,Honeywell International Inc,201.16,3.03,1.53,0,0,201.16
+IBM,International Business Machines Corp,203.53,2.79,1.39,0,0,203.53
+INTC,Intel Corp,19.07,0.18,0.95,0,0,19.07
+JNJ,Johnson & Johnson,166.61,2.23,1.36,0,0,166.61
+KO,Coca-Cola Co,71.85,0.71,1,0,0,71.85
+JPM,JPMorgan Chase & Co,216.81,4.35,2.05,0,0,216.81
+MCD,McDonald’s Corp,291.29,1.78,0.61,0,0,291.29
+MMM,3M Co,128.46,-0.14,-0.11,0,0,128.46
+MRK,Merck & Co Inc,115.41,-2.43,-2.06,0,0,115.41
+MSFT,Microsoft Corp,405.72,4.02,1,0,0,405.72
+NKE,Nike Inc,79.49,-1.14,-1.41,0,0,79.49
+PG,Procter & Gamble Co,176.06,0.47,0.27,0,0,176.06
+TRV,Travelers Companies Inc,240.05,6.64,2.83,0,0,240.05
+UNH,Unitedhealth Group Inc,594.1,-2.78,-0.47,0,0,594.1
+CRM,Salesforce Inc,245.76,1.79,0.73,0,0,245.76
+VZ,Verizon Communications Inc,42.73,1.58,3.84,0,0,42.73
+V,Visa Inc,285.61,6.24,2.23,0,0,285.61
+WMT,Walmart Inc,77.34,0.7,0.91,0,0,77.34
+DIS,Walt Disney Co,88.34,0.4,0.45,0,0,88.34
+DOW,Dow Inc,51.3,0.62,1.22,0,0,51.3

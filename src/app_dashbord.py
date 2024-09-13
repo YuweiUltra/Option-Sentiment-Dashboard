@@ -1,10 +1,12 @@
+import os.path
 from dash import dcc, html, Input, Output, dash_table, Dash
 import warnings
-import socket
 import json
 import pandas as pd
 import plotly.graph_objs as go
-from utils import (get_latest_trading_day, get_close_price, get_listed_dates, get_tickers)
+from src.utils import (get_latest_trading_day, get_close_price, get_listed_dates, get_tickers)
+from src.analysis.calculate_ratios import calculate_ratios
+from config import RAW_DATA_DIR
 
 warnings.filterwarnings("ignore")
 
@@ -13,8 +15,8 @@ warnings.filterwarnings("ignore")
 dates = get_listed_dates()
 last_trading_date, pre_last_trading_date = get_latest_trading_day()
 tickers = get_tickers()
-additional_ticker = ['TSM']
-tickers.extend(additional_ticker)
+tickers.sort()
+ratios = calculate_ratios(rewrite=False)
 
 ##############################################################################################################
 # Dash app setup with suppress_callback_exceptions=True
@@ -39,7 +41,7 @@ app.layout = html.Div(
                 dcc.Dropdown(
                     id='ticker-dropdown',
                     options=[{'label': ticker, 'value': ticker} for ticker in tickers],
-                    value='NVDA',
+                    value='AAPL',
                     clearable=False,
                     style={'width': '80%', 'margin-right': '5px'}  # Adjust width and spacing
                 ),
@@ -57,6 +59,7 @@ app.layout = html.Div(
                         {'label': "Open Interest", 'value': 'open_interest'},
                         {'label': "Gamma Exposure", 'value': 'gamma_exposure'}
                     ],
+                    value="overview",
                     clearable=False,
                     style={'width': '80%', 'margin-right': '5px'}
                 )
@@ -78,11 +81,35 @@ def update_expiration_dropdown_options(ticker, date):
     if ticker is None or date is None:
         return None
     else:
-        df = pd.read_csv(f'./raw_data/{date}/{ticker}/OpenInterest.csv')
+        df = pd.read_csv(os.path.join(RAW_DATA_DIR, f'{date}/{ticker}/OpenInterest.csv'))
         df['date_str'] = df['contract_symbol'].str.extract(r'(\d{6})')
         df['date'] = pd.to_datetime(df['date_str'], format='%y%m%d')
         df = df.sort_values(by='date')
         return df['date'].dt.strftime('%Y-%m-%d').unique().tolist()
+
+
+@app.callback(
+    Output('ticker-dropdown', 'options'),
+    Input('ticker-dropdown', 'search_value'),
+)
+def update_dropdown_options(search_value):
+    if not search_value:
+        # If no search term, display all options
+        return [{'label': ticker, 'value': ticker} for ticker in tickers]
+
+    search_lower = search_value.lower()
+
+    # First, tickers that start with the search term
+    starts_with = [ticker for ticker in tickers if ticker.lower().startswith(search_lower)]
+
+    # Then, tickers that contain the search term elsewhere
+    contains = [ticker for ticker in tickers if
+                search_lower in ticker.lower() and not ticker.lower().startswith(search_lower)]
+
+    # Combine the lists, giving priority to 'starts_with'
+    sorted_tickers = starts_with + contains
+
+    return [{'label': ticker, 'value': ticker} for ticker in sorted_tickers]
 
 
 # Callback to render the appropriate plot content based on the selected plot type and plot category
@@ -104,14 +131,67 @@ def render_content(date, ticker, expirations, selected_plot):
 
     if selected_plot == "overview":
         try:
-            with open(f"./raw_data/{date}/{ticker}/overview_table1.json", 'r') as file:
+            with open(os.path.join(RAW_DATA_DIR, f'{date}/{ticker}/overview_table1.json'), 'r') as file:
                 overview_data1 = json.load(file)
-            with open(f"./raw_data/{date}/{ticker}/overview_table2.json", 'r') as file:
+            with open(os.path.join(RAW_DATA_DIR, f'{date}/{ticker}/overview_table2.json'), 'r') as file:
                 overview_data2 = json.load(file)
 
             overview_data1 = [{"Metric": key, "Value": value} for item in overview_data1 for key, value in item.items()]
 
+            ratios_filtered = ratios[ratios['ticker'] == ticker][
+                ['date', 'gamma_exposure_ratio', 'open_interest_call_put_ratio']]
+
+            fig_gamma_exposure_ratio = go.Figure(data=[
+                go.Bar(
+                    x=ratios_filtered['date'],
+                    y=ratios_filtered['gamma_exposure_ratio'],
+                    marker_color='rgba(75, 192, 192, 0.6)',
+                    width=0.4
+                )
+            ])
+            fig_gamma_exposure_ratio.update_layout(
+                title='Gamma Exposure Ratio Over Time',
+                xaxis_title='Date',
+                yaxis_title='Gamma Exposure Ratio',
+                plot_bgcolor='white',
+                paper_bgcolor='white',
+                font=dict(family="Courier New, monospace", size=14, color="black"),
+                xaxis=dict(
+                    type='category',
+                    categoryorder='array',
+                    categoryarray=ratios_filtered['date'].tolist(),
+                    showgrid=False
+                ),
+                bargap=0.1
+            )
+
+            fig_open_interest_ratio = go.Figure(data=[
+                go.Bar(
+                    x=ratios_filtered['date'],
+                    y=ratios_filtered['open_interest_call_put_ratio'],
+                    marker_color='rgba(153, 102, 255, 0.6)',
+                    width=0.4
+                )
+            ])
+            fig_open_interest_ratio.update_layout(
+                title='Open Interest Call-Put Ratio Over Time',
+                xaxis_title='Date',
+                yaxis_title='Open Interest Call-Put Ratio',
+                plot_bgcolor='white',
+                paper_bgcolor='white',
+                font=dict(family="Courier New, monospace", size=14, color="black"),
+                xaxis=dict(
+                    type='category',
+                    categoryorder='array',
+                    categoryarray=ratios_filtered['date'].tolist(),
+                    showgrid=False
+                ),
+                bargap=0.1
+            )
+
             return html.Div([
+                dcc.Graph(figure=fig_gamma_exposure_ratio),
+                dcc.Graph(figure=fig_open_interest_ratio),
                 dash_table.DataTable(
                     id='volatility-table',
                     columns=[
@@ -166,7 +246,7 @@ def render_content(date, ticker, expirations, selected_plot):
                             'backgroundColor': 'rgb(245, 245, 245)'
                         }
                     ],
-                    page_size=10  # Optional: Set the page size
+                    page_size=10
                 )
             ])
         except:
@@ -174,8 +254,8 @@ def render_content(date, ticker, expirations, selected_plot):
 
     if selected_plot == "gamma_exposure":
         try:
-            df = pd.read_csv(f'./raw_data/{date}/{ticker}/OpenInterest.csv')
-            df_gamma = pd.read_csv(f'./raw_data/{date}/{ticker}/Greeks.csv')
+            df = pd.read_csv(os.path.join(RAW_DATA_DIR, f'{date}/{ticker}/OpenInterest.csv'))
+            df_gamma = pd.read_csv(os.path.join(RAW_DATA_DIR, f'{date}/{ticker}/Greeks.csv'))
 
             df = pd.merge(df, df_gamma[['contract_symbol', 'gamma']], on='contract_symbol')
             df['gamma_exposure'] = df['open_interest'] * df['gamma']
@@ -263,9 +343,9 @@ def render_content(date, ticker, expirations, selected_plot):
             )
 
             df_call_summary = df[df['option_type'] == 'CALL'].groupby('expiration').sum(numeric_only=True).nlargest(5,
-                                                                                                   'gamma_exposure').reset_index()
+                                                                                                                    'gamma_exposure').reset_index()
             df_put_summary = df[df['option_type'] == 'PUT'].groupby('expiration').sum(numeric_only=True).nlargest(5,
-                                                                                                 'gamma_exposure').reset_index()
+                                                                                                                  'gamma_exposure').reset_index()
 
             fig_call_summary = go.Figure()
             fig_call_summary.add_trace(go.Bar(
@@ -403,7 +483,7 @@ def render_content(date, ticker, expirations, selected_plot):
 
     if selected_plot == "open_interest":
         try:
-            df = pd.read_csv(f'./raw_data/{date}/{ticker}/OpenInterest.csv')
+            df = pd.read_csv(os.path.join(RAW_DATA_DIR, f'{date}/{ticker}/OpenInterest.csv'))
             df['date_str'] = df['contract_symbol'].str.extract(r'(\d{6})')
             df['date'] = pd.to_datetime(df['date_str'], format='%y%m%d')
             df['expiration'] = df['date'].dt.strftime('%Y-%m-%d')
@@ -488,9 +568,9 @@ def render_content(date, ticker, expirations, selected_plot):
             )
 
             df_call_summary = df[df['option_type'] == 'CALL'].groupby('expiration').sum(numeric_only=True).nlargest(5,
-                                                                                                   'open_interest').reset_index()
+                                                                                                                    'open_interest').reset_index()
             df_put_summary = df[df['option_type'] == 'PUT'].groupby('expiration').sum(numeric_only=True).nlargest(5,
-                                                                                                 'open_interest').reset_index()
+                                                                                                                  'open_interest').reset_index()
 
             fig_call_summary = go.Figure()
             fig_call_summary.add_trace(go.Bar(
@@ -576,17 +656,5 @@ def render_content(date, ticker, expirations, selected_plot):
 
 
 if __name__ == '__main__':
-    # def find_free_port():
-    #     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #     sock.bind(('', 0))  # Bind to any available port
-    #     port = sock.getsockname()[1]  # Get the port number assigned
-    #     sock.close()
-    #     return port
-    #
-    #
-    # # Run the server with a dynamically allocated port
-    # free_port = find_free_port()
-    # app.run_server(debug=False, port=free_port)
-
     fixed_port = 8050
-    app.run_server(debug=False, port=fixed_port, host='0.0.0.0')
+    app.run_server(debug=True, port=fixed_port, host='0.0.0.0')

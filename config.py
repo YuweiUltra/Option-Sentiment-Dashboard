@@ -8,6 +8,7 @@ RAW_DATA_DIR = os.path.join(BASE_DIR, 'data', 'raw_data')
 ANALYSIS_DATA_DIR = os.path.join(BASE_DIR, 'data', 'analysis_data')
 RISKMACRO_DATA_DIR = os.path.join(BASE_DIR, 'data', 'riskmacro_data')
 INDEX_DATA_DIR = os.path.join(BASE_DIR, 'data', 'index_components')
+LOG_DIR = os.path.join(BASE_DIR, 'log_files')
 
 base_url = "https://optioncharts.io/options"
 cpus = 10

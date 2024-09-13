@@ -1,4 +1,4 @@
-from config import base_url, tries, timeout, headless, account, password
+from config import base_url, tries, timeout, headless, account, password, LOG_DIR, RAW_DATA_DIR
 from playwright.sync_api import Playwright, sync_playwright, expect
 import os
 import time
@@ -9,13 +9,13 @@ import logging
 from joblib import Parallel, delayed
 from fake_useragent import UserAgent
 
-from utils import get_latest_trading_day, get_close_price
+from src.utils import get_latest_trading_day, get_close_price
 
 today, _ = get_latest_trading_day()
 
 # Configure logging
 logging.basicConfig(
-    filename=f'./log_files/run_{today}.log',  # Log file name
+    filename=os.path.join(LOG_DIR, 'run_{today}.log'),  # Log file name
     filemode='a',  # Append mode
     format='%(asctime)s - %(levelname)s - %(message)s',  # Log format
     level=logging.INFO  # Set the logging level
@@ -33,7 +33,7 @@ def close_modal_if_visible(page):
 
 def chart_crawler(playwright: Playwright, url, ticker) -> None:
     # File path where the data will be stored
-    base_path = f"./raw_data/{today}/{ticker}"
+    base_path = os.path.join(RAW_DATA_DIR, f"{today}/{ticker}")
     fps = [f"{base_path}/OpenInterest.csv", f"{base_path}/ImpliedVolatility.csv", f"{base_path}/GammaExposure.csv",
            f"{base_path}/Greeks.csv",
            f"{base_path}/Volume.csv", f"{base_path}/MaxPain.csv",

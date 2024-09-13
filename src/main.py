@@ -1,5 +1,5 @@
 import pandas as pd
-from chart_crawler import process_ticker_chart, Parallel, delayed
+from crawler.chart_crawler import process_ticker_chart, Parallel, delayed
 from config import cpus
 from utils import get_latest_trading_day, get_tickers
 from tqdm import tqdm

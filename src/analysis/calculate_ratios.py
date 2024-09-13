@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from src.utils import get_listed_dates, get_tickers
 from datetime import datetime
-from config import  ANALYSIS_DATA_DIR,RAW_DATA_DIR
+from config import ANALYSIS_DATA_DIR, RAW_DATA_DIR
 
 
 def calculate_ratios(rewrite=False):

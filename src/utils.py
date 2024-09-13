@@ -9,7 +9,7 @@ import pandas_market_calendars as mcal
 from datetime import datetime, timedelta
 import pytz
 from functools import lru_cache
-from config import RAW_DATA_DIR,INDEX_DATA_DIR
+from config import RAW_DATA_DIR, INDEX_DATA_DIR
 
 
 def overview(dates, tickers):
