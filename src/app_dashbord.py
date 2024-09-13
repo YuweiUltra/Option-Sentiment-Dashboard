@@ -2,11 +2,13 @@ import os.path
 from dash import dcc, html, Input, Output, dash_table, Dash
 import warnings
 import json
+from flask_caching import Cache
 import pandas as pd
 import plotly.graph_objs as go
 from src.utils import (get_latest_trading_day, get_close_price, get_listed_dates, get_tickers)
 from src.analysis.calculate_ratios import calculate_ratios
-from config import RAW_DATA_DIR
+from src.analysis.cross_section import create_cross_section_content  # Import the function
+from config import RAW_DATA_DIR, INDEX_DATA_DIR
 
 warnings.filterwarnings("ignore")
 
@@ -57,7 +59,8 @@ app.layout = html.Div(
                     options=[
                         {'label': "Overview", 'value': 'overview'},
                         {'label': "Open Interest", 'value': 'open_interest'},
-                        {'label': "Gamma Exposure", 'value': 'gamma_exposure'}
+                        {'label': "Gamma Exposure", 'value': 'gamma_exposure'},
+                        {'label': "Cross Section", 'value': 'cross_section'}
                     ],
                     value="overview",
                     clearable=False,
@@ -121,6 +124,12 @@ def update_dropdown_options(search_value):
      Input('plot-selection-dropdown', 'value')]
 )
 def render_content(date, ticker, expirations, selected_plot):
+    if selected_plot == 'cross_section':
+        try:
+            return create_cross_section_content(date, dates, tickers)
+        except Exception as e:
+            return html.Div(f"Error generating cross section content: {e}")
+
     try:
         price = get_close_price(ticker, date)
     except:
@@ -656,5 +665,12 @@ def render_content(date, ticker, expirations, selected_plot):
 
 
 if __name__ == '__main__':
+    cache = Cache(app.server, config={
+        'CACHE_TYPE': 'simple'  # For development. Use more robust caching in production
+    })
+
+    # Define cache timeout in seconds
+    CACHE_TIMEOUT = 60 * 60
+
     fixed_port = 8050
     app.run_server(debug=True, port=fixed_port, host='0.0.0.0')
