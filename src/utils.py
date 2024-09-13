@@ -9,6 +9,7 @@ import pandas_market_calendars as mcal
 from datetime import datetime, timedelta
 import pytz
 from functools import lru_cache
+from config import RAW_DATA_DIR,INDEX_DATA_DIR
 
 
 def overview(dates, tickers):
@@ -18,7 +19,7 @@ def overview(dates, tickers):
     for date in dates:
         for ticker in tickers:
             try:
-                with open(f"./raw_data/{date}/{ticker}/table1.json", "r") as fp:
+                with open(os.path.join(RAW_DATA_DIR, f"{date}/{ticker}/table1.json"), "r") as fp:
                     dicts = json.load(fp)
                     ticker_dict = {'ticker': ticker, 'date': date}
                     for d in dicts:
@@ -37,7 +38,7 @@ def overview_by_expiration(dates, tickers):
     for date in dates:
         for ticker in tickers:
             try:
-                with open(f"./raw_data/{date}/{ticker}/table2.json", "r") as fp:
+                with open(os.path.join(RAW_DATA_DIR, f"{date}/{ticker}/table2.json"), "r") as fp:
                     dicts = json.load(fp)
                     for d in dicts:
                         d['ticker'] = ticker
@@ -56,7 +57,7 @@ def contract(dates, tickers):
     for date in dates:
         for ticker in tickers:
             try:
-                with open(f"./raw_data/{date}/{ticker}/table3.json", "r") as fp:
+                with open(os.path.join(RAW_DATA_DIR, f"{date}/{ticker}/table3.json"), "r") as fp:
                     dicts = json.load(fp)
                     for d in dicts:
                         d['ticker'] = ticker
@@ -313,8 +314,8 @@ def generate_call_put_ratio_plot(expiration_summary=None, df_melted=None, add_on
     return dcc.Graph(figure=fig), df_melted
 
 
-def get_close_price(ticker, date, rewrite=False,local=False):
-    dir_path = f"./raw_data/{date}/{ticker}"
+def get_close_price(ticker, date, rewrite=False, local=False):
+    dir_path = os.path.join(RAW_DATA_DIR, f"{date}/{ticker}")
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
@@ -338,6 +339,7 @@ def get_close_price(ticker, date, rewrite=False,local=False):
             return close_price_data
         else:
             raise Exception('no data found')
+
 
 @lru_cache(maxsize=10)
 def prepare_data(date, tickers_tuple):
@@ -377,8 +379,8 @@ def prepare_data(date, tickers_tuple):
 
 def get_listed_dates():
     dates = []
-    for dir_name in os.listdir('./raw_data'):
-        full_path = os.path.join('./raw_data', dir_name)
+    for dir_name in os.listdir(RAW_DATA_DIR):
+        full_path = os.path.join(RAW_DATA_DIR, dir_name)
         if os.path.isdir(full_path):
             dates.append(dir_name)
     dates.sort()
@@ -467,26 +469,9 @@ def filter_combined_data_by_thresholds(df3, date, itm_or_otm, left_threshold_ori
 
 
 def get_tickers():
-    df = pd.read_csv('./sp500_companies.csv')
-    # df2 = pd.read_csv('./dow30.csv')
-    # df3 = pd.read_csv('./nasdaq100.csv')
-    # df4 = pd.read_csv('./russell1000.csv')
-    # new_columns = ['Symbol']
-    # new_columns.extend(df2.columns[1:])
-    # df2.columns = new_columns
-    # new_columns = ['Symbol']
-    # new_columns.extend(df3.columns[1:])
-    # df3.columns = new_columns
-
+    df = pd.read_csv(os.path.join(INDEX_DATA_DIR, f"sp500_companies.csv"))
     tickers = list(df.Symbol.unique())
-    # df2_tickers = list(df2.Symbol.unique())
-    # df3_tickers = list(df3.Symbol.unique())
-    # df4_tickers = list(df4.Ticker.unique())
-
-    # tickers.extend(df2_tickers)
-    # tickers.extend(df3_tickers)
-    # tickers.extend(df4_tickers)
-    tickers.extend(['TSM'])
+    tickers.extend(['TSM', 'PTRL', 'QQQ', 'SPY'])
 
     tickers = list(set(tickers))
     return tickers
