@@ -15,7 +15,7 @@ today, _ = get_latest_trading_day()
 
 # Configure logging
 logging.basicConfig(
-    filename=os.path.join(LOG_DIR, 'run_{today}.log'),  # Log file name
+    filename=os.path.join(LOG_DIR, f'run_{today}.log'),  # Log file name
     filemode='a',  # Append mode
     format='%(asctime)s - %(levelname)s - %(message)s',  # Log format
     level=logging.INFO  # Set the logging level
