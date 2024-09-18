@@ -121,6 +121,7 @@ def run(playwright: Playwright) -> None:
                 except Exception as e:
                     print(f"Error processing bar {i + 1}: {e}")
 
+            page.get_by_text("Gamma-Skew").nth(1).click()
             chart_area = page.locator("g.highcharts-series-group")
             bounding_box = chart_area.bounding_box()
 
@@ -131,21 +132,20 @@ def run(playwright: Playwright) -> None:
                 y_end = bounding_box['y'] + bounding_box['height']
                 num_samples = bar_count * 3
                 x_positions = [x_start + i * (x_end - x_start) / num_samples for i in range(num_samples + 1)]
-                y_position = (y_end + y_start) / 2 if url == 525 else y_end
+                y_position = (y_end + y_start) / 2 if url == 525 else y_end * 0.8 + y_start * 0.2
 
                 for i, x in enumerate(x_positions):
                     date_pattern = r'\d{4}/\d{2}/\d{2}'
                     value_pattern = r'Settlement Price:\s*([\d\s.]+)'
                     try:
                         # Move the mouse to (x, y_position + 10) and click
-                        page.mouse.move(x, y_position + 10)
-                        page.mouse.click(x, y_position + 10)
+                        page.mouse.click(x, y_position)
 
                         # Optionally, wait for a brief moment after clicking
                         page.wait_for_timeout(100)  # 100 milliseconds
 
                         # Wait for the tooltip to appear
-                        page.wait_for_selector("g.highcharts-label.highcharts-tooltip", timeout=500)
+                        page.wait_for_selector("g.highcharts-label.highcharts-tooltip", timeout=100)
                         tooltip = page.locator("g.highcharts-label.highcharts-tooltip")
                         if tooltip.is_visible():
                             data_text = tooltip.text_content().strip()

@@ -11,7 +11,7 @@ INDEX_DATA_DIR = os.path.join(BASE_DIR, 'data', 'index_components')
 LOG_DIR = os.path.join(BASE_DIR, 'log_files')
 
 base_url = "https://optioncharts.io/options"
-cpus = 10
+cpus = 5
 tries = 3
 timeout = 50000
 headless = True
