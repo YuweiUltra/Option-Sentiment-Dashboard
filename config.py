@@ -12,7 +12,7 @@ LOG_DIR = os.path.join(BASE_DIR, 'log_files')
 
 base_url = "https://optioncharts.io/options"
 cpus = 5
-tries = 3
+tries = 1
 timeout = 50000
 headless = True
 account = "yuweiyan@uchicago.edu"
