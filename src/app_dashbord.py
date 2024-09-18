@@ -411,6 +411,11 @@ def render_content(date, ticker, expirations, selected_plot, n_clicks):
             sum_put = df_put.groupby('strike')['gamma_exposure'].sum(numeric_only=True).reset_index().dropna()
             sum_call = df_call.groupby('strike')['gamma_exposure'].sum(numeric_only=True).reset_index().dropna()
 
+            # sum_put['option_type']='PUT'
+            # sum_call['option_type'] = 'CALL'
+            # temp=pd.concat([sum_put,sum_call],axis=0)
+            # temp.to_csv(f'{ticker}_{date}.csv')
+
             max_y = max(sum_put['gamma_exposure'].max(), sum_call['gamma_exposure'].max())
             min_y = min(sum_put['gamma_exposure'].min(), sum_call['gamma_exposure'].min())
 
@@ -563,6 +568,8 @@ def render_content(date, ticker, expirations, selected_plot, n_clicks):
             ).reset_index(name='gamma_exposure_diff').dropna()
 
             fig_gamma_diff = go.Figure()
+
+            # df_grouped_diff.to_csv(f'./{ticker}_{date}.csv')
 
             fig_gamma_diff.add_trace(go.Bar(
                 x=df_grouped_diff['strike'],

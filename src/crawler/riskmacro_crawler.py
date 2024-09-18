@@ -102,7 +102,7 @@ def run(playwright: Playwright) -> None:
                     print(f"Bar {i + 1} is not visible, skipping.")
                     continue
                 try:
-                    bar.hover()
+                    bar.click()
                     page.wait_for_selector("g.highcharts-label.highcharts-tooltip", timeout=2000)
                     tooltip = page.locator("g.highcharts-label.highcharts-tooltip")
                     if tooltip.is_visible():
@@ -177,7 +177,7 @@ def run(playwright: Playwright) -> None:
             df = df.sort_values('date')
             df = df.set_index('date')
             df.index = pd.to_datetime(df.index)
-            df.to_csv(file_path, index=False, encoding='utf-8-sig')
+            df.to_csv(file_path, index=True, encoding='utf-8-sig')
             print(f"Scraping for '{name}' completed and saved to {file_path}.")
 
         except Exception as e:

@@ -27,8 +27,8 @@ def cal_gamma_skew(date, ticker):
     """
     try:
         price = get_close_price(ticker, date)
-        lower_bound = price['Close'] * 0.5
-        upper_bound = price['Close'] * 1.5
+        lower_bound = price['Close'] * 0
+        upper_bound = price['Close'] * 1000
 
         # Read CSV files
         df_oi = pd.read_csv(os.path.join(RAW_DATA_DIR, date, ticker, 'OpenInterest.csv'))
@@ -168,6 +168,7 @@ def create_cross_section_figures(temp_df, model, top_n=5):
     fig.update_layout(showlegend=True)
 
     # Prepare Tables
+    temp_df=temp_df.sort_values(['skew change','current skew'])
     df_head = temp_df.head(10).to_dict('records')
     df_tail = temp_df.tail(10).to_dict('records')
     specific_tickers = ['NVDA', 'META', 'GOOG', 'GOOGL', 'AAPL', 'TSLA', 'MSFT', 'AMZN', 'MU', 'TSM']
